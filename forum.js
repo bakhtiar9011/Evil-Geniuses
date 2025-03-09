@@ -1,0 +1,508 @@
+(function() {
+  const sadEmoji = chrome.runtime.getURL('./Dislikes.png');
+  const evilEmoji = chrome.runtime.getURL('./Likes.png');
+  const efgImage = chrome.runtime.getURL('./EFG.png');
+
+  const dislikes = new Image();
+  dislikes.src = sadEmoji;
+  dislikes.alt = 'Sad Emoji';
+  dislikes.onerror = () => console.error('Dislike image failed to load');
+  dislikes.onload = () => console.log('Dislike image loaded successfully');
+  const likes = new Image();
+  likes.src = evilEmoji;
+  likes.alt = 'Evil Emoji';
+  likes.onerror = () => console.error('Like image failed to load');
+  likes.onload = () => console.log('Like image loaded successfully');
+  const efgImg = new Image();
+  efgImg.src = efgImage;
+  efgImg.alt = 'EFG Logo';
+  efgImg.onerror = () => console.error('EFG image failed to load at pre-load stage');
+  efgImg.onload = () => console.log('EFG image loaded successfully at pre-load stage');
+
+  if (document.getElementById('evil-forum')) return;
+  if (!document.body) return;
+
+  const currentUrl = window.location.href;
+
+  const forumDiv = document.createElement('div');
+  forumDiv.id = 'evil-forum';
+  forumDiv.style.cssText = `
+      position: fixed;
+      resize: vertical;
+      margin: 5px;
+      bottom: 10px;
+      right: 5px;
+      width: 300px;
+      max-height: 700px;
+      overflow-y: auto;
+      background: #ffffff !important;
+      color: #000000 !important;
+      border: 1px solid #ccc;
+      padding: 5px;
+      z-index: 9999;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      box-sizing: border-box;
+      transition: all 0.3s ease;
+  `;
+  document.body.appendChild(forumDiv);
+
+  const toggleBtn = document.createElement('button');
+  toggleBtn.id = 'toggle-btn';
+  toggleBtn.textContent = '-';
+  toggleBtn.style.cssText = `
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      color: #000000 !important;
+      background: #ffffff !important;
+      border: 1px solid #ccc;
+      padding: 2px 8px;
+      cursor: pointer;
+      font-size: 12px;
+      z-index: 10000;
+  `;
+  forumDiv.appendChild(toggleBtn);
+
+  const imageContainer = document.createElement('div');
+  imageContainer.id = 'efg-image-container';
+  imageContainer.style.cssText = `
+      display: none;
+      text-align: center;
+      margin: auto;
+      padding: 5px;
+      cursor: pointer;
+  `;
+  const efgImageElement = document.createElement('img');
+  efgImageElement.src = efgImage;
+  efgImageElement.alt = 'EFG Logo';
+  efgImageElement.style.width = '50px';
+  efgImageElement.onerror = () => console.error('EFG image failed to load in DOM');
+  efgImageElement.onload = () => console.log('EFG image loaded successfully in DOM');
+  imageContainer.appendChild(efgImageElement);
+  forumDiv.appendChild(imageContainer);
+
+  const title = document.createElement('h3');
+  title.textContent = `Forum for ${new URL(currentUrl).hostname}`;
+  title.style.cssText = `
+      margin: 0 0 10px;
+      color: #000000 !important;
+      background: #ffffff !important;
+      font-size: 16px;
+      font-weight: bold;
+  `;
+  forumDiv.appendChild(title);
+
+  const commentList = document.createElement('div');
+  commentList.id = 'comment-list';
+  commentList.textContent = 'No comments yet';
+  commentList.style.cssText = `
+      color: #000000 !important;
+      background: #ffffff !important;
+      margin-bottom: 10px;
+  `;
+  forumDiv.appendChild(commentList);
+
+  const form = document.createElement('form');
+  form.style.cssText = `
+      display: flex;
+      align-items: center;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 5px;
+  `;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'Add a comment...';
+  input.id = 'top-level-input';
+  input.style.cssText = `
+      flex: 1;
+      color: #000000 !important;
+      background: #ffffff !important;
+      border: 1px solid #ccc;
+      padding: 5px;
+      margin-right: 5px;
+      box-sizing: border-box;
+      min-width: 50px;
+  `;
+  const submitBtn = document.createElement('button');
+  submitBtn.textContent = 'Post';
+  submitBtn.style.cssText = `
+      color: #000000 !important;
+      background: #ffffff !important;
+      border: 1px solid #ccc;
+      padding: 5px 10px;
+      cursor: pointer;
+      box-sizing: border-box;
+  `;
+  form.appendChild(input);
+  form.appendChild(submitBtn);
+  forumDiv.appendChild(form);
+
+  const replyVisibilityState = new Map();
+  let isMinimized = false;
+
+  const toggleForum = () => {
+      isMinimized = !isMinimized;
+      if (isMinimized) {
+          forumDiv.style.width = '80px';
+          forumDiv.style.maxHeight = '80px';
+          forumDiv.style.padding = '5px';
+          forumDiv.style.borderRadius = '50%';
+          forumDiv.style.overflow = 'hidden';
+          forumDiv.style.margin = 'auto';
+          forumDiv.style.resize = 'vertical';
+          commentList.style.display = 'none';
+          form.style.display = 'none';
+          title.style.display = 'none';
+          toggleBtn.style.display = 'none';
+          imageContainer.style.display = 'flex';
+          imageContainer.style.margin = 'auto';
+          imageContainer.style.width = '50px';
+          imageContainer.style.height = '50px';
+          imageContainer.style.paddingTop ='9px';
+      } else {
+          forumDiv.style.width = '300px';
+          forumDiv.style.maxHeight = '700px';
+          forumDiv.style.padding = '10px';
+          forumDiv.style.borderRadius = '4px';
+          forumDiv.style.overflowY = 'auto';
+          forumDiv.style.margin = '5px';
+          commentList.style.display = 'block';
+          form.style.display = 'flex';
+          title.style.display = 'block';
+          toggleBtn.style.display = 'block';
+          imageContainer.style.display = 'none';
+      }
+  };
+
+  toggleBtn.addEventListener('click', toggleForum);
+  imageContainer.addEventListener('click', toggleForum);
+
+  chrome.runtime.sendMessage({ request: 'getToken' }, (response) => {
+      if (chrome.runtime.lastError) {
+          console.error('forum.js: Message error:', chrome.runtime.lastError.message);
+          commentList.textContent = 'Error getting token';
+          return;
+      }
+      const token = response ? response.token : null;
+      if (!token || token === 'null' || token === '') {
+          commentList.textContent = 'Please log in to view comments';
+          return;
+      }
+
+      const paginationDiv = document.createElement('div');
+      paginationDiv.id = 'pagination-controls';
+      paginationDiv.style.cssText = `
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 10px;
+          color: #000000 !important;
+          background: #ffffff !important;
+      `;
+      forumDiv.appendChild(paginationDiv);
+
+      const updatePagination = () => {
+        paginationDiv.innerHTML = '';
+        
+        const totalPages = Math.ceil(totalTopLevelComments / commentsPerPage);
+        
+        const prevBtn = document.createElement('button');
+        prevBtn.textContent = 'Previous';
+        prevBtn.style.cssText = `
+            color: #000000 !important;
+            background: #ffffff !important;
+            border: 1px solid #ccc;
+            padding: 5px 10px;
+            cursor: ${currentPage === 1 ? 'not-allowed' : 'pointer'};
+            opacity: ${currentPage === 1 ? 0.5 : 1};
+        `;
+        prevBtn.disabled = currentPage === 1;
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 1) fetchComments(currentPage - 1);
+        });
+        
+        const pageInfo = document.createElement('span');
+        pageInfo.textContent = `Page ${currentPage} of ${totalPages || 1}`;
+        pageInfo.style.cssText = `
+            color: #000000 !important;
+            background: #ffffff !important;
+        `;
+    
+        const nextBtn = document.createElement('button');
+        nextBtn.textContent = 'Next';
+        nextBtn.style.cssText = `
+            color: #000000 !important;
+            background: #ffffff !important;
+            border: 1px solid #ccc;
+            padding: 5px 10px;
+            cursor: ${currentPage === totalPages ? 'not-allowed' : 'pointer'};
+            opacity: ${currentPage === totalPages ? 0.5 : 1};
+        `;
+        nextBtn.disabled = currentPage === totalPages;
+        nextBtn.addEventListener('click', () => {
+            if (currentPage < totalPages) fetchComments(currentPage + 1);
+        });
+    
+        paginationDiv.appendChild(prevBtn);
+        paginationDiv.appendChild(pageInfo);
+        paginationDiv.appendChild(nextBtn);
+    };
+
+      let currentPage = 1;
+      const commentsPerPage = 10;
+      let totalTopLevelComments = 0;
+
+      const fetchComments = (page = 1) => {
+          currentPage = page;
+          const offset = (page - 1) * commentsPerPage;
+          
+          // Changed to order=asc for oldest first
+          fetch(`https://evilgeniusfoundation-3b5e54342af3.herokuapp.com/api/posts?url=${encodeURIComponent(currentUrl)}&limit=${commentsPerPage}&offset=${offset}&order=desc`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+          })
+              .then(res => {
+                  if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                  return res.json();
+              })
+              .then(data => {
+                  const allComments = Array.isArray(data) ? data : data.comments || [];
+                  const topLevelComments = allComments.filter(comment => !comment.reply_of);
+                  totalTopLevelComments = data.total_top_level ? data.total_top_level : 
+                      allComments.reduce((count, comment) => count + (!comment.reply_of ? 1 : 0), 0);
+                  
+                  commentList.innerHTML = '';
+                  if (!topLevelComments || topLevelComments.length === 0) {
+                      commentList.textContent = 'No comments yet';
+                      updatePagination();
+                      return;
+                  }
+
+                  const postMap = new Map(allComments.map(p => [p.id, { ...p, replies: [] }]));
+                  const topLevelPosts = [];
+                  allComments.forEach(post => {
+                      console.log(post)
+                      if (post.reply_of) {
+                          const parent = postMap.get(post.reply_of);
+                          if (parent) parent.replies.push(postMap.get(post.id));
+                      } else {
+                          topLevelPosts.push(postMap.get(post.id));
+                      }
+                  });
+
+                  const startIdx = (page - 1) * commentsPerPage;
+                  const endIdx = startIdx + commentsPerPage;
+                  const paginatedTopLevelPosts = topLevelPosts.slice(startIdx, endIdx);
+
+                  const renderComment = (comment, level = 0, container) => {
+                      const commentWrapper = document.createElement('div');
+                      commentWrapper.style.cssText = `margin-bottom: 10px;`;
+
+                      const indent = level === 0 ? 0 : 20;
+                      const border = document.createElement('div');
+                      border.style.cssText = `border: 1px solid #ccc; margin-left: ${indent}px; padding: 5px; background: #f9f9f9; border-radius: 4px;`;
+
+                      const username = document.createElement('p');
+                      username.textContent = `${comment.username} :`;
+                      username.style.cssText = `color: #000000 !important; font-size: 16px; font-weight: bold; margin: 0 0 5px 0;`;
+
+                      const p = document.createElement('p');
+                      p.textContent = `${comment.comment}`;
+                      p.style.cssText = `margin: 0 0 5px 0; color: #000000 !important; background: transparent !important;`;
+
+                      const p1 = document.createElement('p');
+                      p1.textContent = `Title: ${comment.title}`;
+                      p1.style.cssText = `margin: 0 0 5px 0; color: #000000 !important; background: transparent !important;`;
+
+                      const likeBtn = document.createElement('button');
+                      likeBtn.style.cssText = `margin-right: 5px; color: #000000 !important; background: transparent !important; border: none; padding: 5px; cursor: pointer; display: inline-flex; align-items: center;`;
+                      const likeImg = likes.cloneNode(true);
+                      likeImg.style.width = '40px';
+                      likeBtn.appendChild(likeImg);
+                      likeBtn.appendChild(document.createTextNode(` ${comment.likes}`));
+                      likeBtn.addEventListener('click', () => {
+                          if (!token) {
+                              alert('Please log in to like posts');
+                              return;
+                          }
+                          fetch(`https://evilgeniusfoundation-3b5e54342af3.herokuapp.com/api/likes`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                              body: JSON.stringify({ posts_id: comment.id })
+                          })
+                              .then(res => {
+                                  if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                                  return res.json();
+                              })
+                              .then(() => fetchComments(currentPage))
+                              .catch(err => console.error('forum.js: Like failed:', err));
+                      });
+
+                      const dislikeBtn = document.createElement('button');
+                      dislikeBtn.style.cssText = `margin-right: 5px; color: #000000 !important; background: transparent !important; border: none; padding: 5px; cursor: pointer; display: inline-flex; align-items: center;`;
+                      const dislikeImg = dislikes.cloneNode(true);
+                      dislikeImg.style.width = '40px';
+                      dislikeBtn.appendChild(dislikeImg);
+                      dislikeBtn.appendChild(document.createTextNode(` ${comment.dislikes}`));
+                      dislikeBtn.addEventListener('click', () => {
+                          if (!token) {
+                              alert('Please log in to dislike posts');
+                              return;
+                          }
+                          fetch(`https://evilgeniusfoundation-3b5e54342af3.herokuapp.com/api/dislikes`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                              body: JSON.stringify({ posts_id: comment.id })
+                          })
+                              .then(res => {
+                                  if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                                  return res.json();
+                              })
+                              .then(() => fetchComments(currentPage))
+                              .catch(err => console.error('forum.js: Dislike failed:', err));
+                      });
+
+                      const replyContainer = document.createElement('div');
+                      replyContainer.className = `reply-container-${comment.id}`;
+                      replyContainer.style.cssText = `margin-left: ${indent}px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px; padding: 5px;`;
+                      const isRepliesVisible = replyVisibilityState.get(comment.id) || false;
+                      replyContainer.style.display = isRepliesVisible ? 'block' : 'none';
+
+                      const toggleRepliesBtn = document.createElement('button');
+                      toggleRepliesBtn.textContent = `${isRepliesVisible ? 'Hide' : 'Show'} Replies (${comment.replies?.length || 0})`;
+                      toggleRepliesBtn.style.cssText = `margin-left: 5px; color: #000000 !important; background: #e0e0e0 !important; border: 1px solid #ccc; padding: 5px; cursor: pointer; font-size: 14px;`;
+                      toggleRepliesBtn.addEventListener('click', () => {
+                          const isHidden = replyContainer.style.display === 'none';
+                          replyContainer.style.display = isHidden ? 'block' : 'none';
+                          replyVisibilityState.set(comment.id, isHidden);
+                          toggleRepliesBtn.textContent = `${isHidden ? 'Hide' : 'Show'} Replies (${comment.replies?.length || 0})`;
+                      });
+
+                      const replyBtn = document.createElement('button');
+                      replyBtn.textContent = 'Reply';
+                      replyBtn.style.cssText = `
+                          margin-left: 5px;
+                          color: #000000 !important;
+                          background: transparent !important;
+                          border: none;
+                          padding: 5px;
+                          cursor: pointer;
+                          font-size: 14px;
+                      `;
+                      replyBtn.addEventListener('click', () => {
+                          if (!token) {
+                              alert('Please log in to reply');
+                              return;
+                          }
+                          let replyForm = replyContainer.querySelector('.reply-form');
+                          if (replyForm) {
+                              replyForm.querySelector('input').focus();
+                              return;
+                          }
+
+                          replyForm = document.createElement('div');
+                          replyForm.className = 'reply-form';
+                          const replyInput = document.createElement('input');
+                          replyInput.type = 'text';
+                          replyInput.placeholder = 'Type your reply...';
+                          replyInput.style.cssText = `width: 70%; color: #000000 !important; background: #ffffff !important; border: 1px solid #ccc; padding: 5px; margin-top: 5px; box-sizing: border-box;`;
+                          const replySubmit = document.createElement('button');
+                          replySubmit.textContent = 'Post Reply';
+                          replySubmit.style.cssText = `margin-left: 5px; color: #000000 !important; background: #ffffff !important; border: 1px solid #ccc; padding: 5px 10px; cursor: pointer;`;
+                          replySubmit.addEventListener('click', () => {
+                              const replyText = replyInput.value.trim();
+                              if (replyText) {
+                                  fetch(`https://evilgeniusfoundation-3b5e54342af3.herokuapp.com/api/posts`, {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                      body: JSON.stringify({ url: currentUrl, text: replyText, reply_of: comment.id })
+                                  })
+                                      .then(res => {
+                                          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                                          return res.json();
+                                      })
+                                      .then(data => {
+                                          replyForm.remove();
+                                          replyBtn.textContent = 'Reply Again';
+                                          const newReply = {
+                                              id: data.id,
+                                              comment: replyText,
+                                              username: comment.username || 'Anonymous',
+                                              title: comment.title,
+                                              likes: 0,
+                                              dislikes: 0,
+                                              reply_of: comment.id,
+                                              replies: []
+                                          };
+                                          if (!comment.replies) comment.replies = [];
+                                          comment.replies.push(newReply);
+                                          toggleRepliesBtn.textContent = `${replyVisibilityState.get(comment.id) ? 'Hide' : 'Show'} Replies (${comment.replies.length})`;
+                                          renderComment(newReply, level + 1, replyContainer);
+                                          fetchComments(currentPage);
+                                      })
+                                      .catch(err => console.error('Reply POST failed:', err));
+                              }
+                          });
+
+                          replyForm.appendChild(replyInput);
+                          replyForm.appendChild(replySubmit);
+                          replyContainer.appendChild(replyForm);
+                          replyContainer.style.display = 'block';
+                      });
+
+                      p1.appendChild(likeBtn);
+                      p1.appendChild(dislikeBtn);
+                      if (comment.replies && comment.replies.length > 0) {
+                          p1.appendChild(toggleRepliesBtn);
+                      }
+                      p1.appendChild(replyBtn);
+
+                      border.appendChild(username);
+                      border.appendChild(p);
+                      border.appendChild(p1);
+                      commentWrapper.appendChild(border);
+                      commentWrapper.appendChild(replyContainer);
+                      container.appendChild(commentWrapper);
+
+                      if (comment.replies && Array.isArray(comment.replies)) {
+                          comment.replies.forEach(reply => renderComment(reply, level + 1, replyContainer));
+                      }
+                  };
+
+                  paginatedTopLevelPosts.forEach(comment => renderComment(comment, 0, commentList));
+                  updatePagination();
+              })
+              .catch(err => {
+                  console.error('forum.js: Fetch comments failed:', err);
+                  commentList.textContent = 'Failed to load comments';
+              });
+      };
+
+      form.onsubmit = (e) => {
+          e.preventDefault();
+          const text = document.getElementById('top-level-input').value.trim();
+          if (!text) return;
+          fetch(`https://evilgeniusfoundation-3b5e54342af3.herokuapp.com/api/posts`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+              body: JSON.stringify({ url: currentUrl, text })
+          })
+              .then(res => {
+                  if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                  return res.json();
+              })
+              .then(data => {
+                  document.getElementById('top-level-input').value = '';
+                  // After posting a new comment, go to the last page where new comments appear
+                  const totalPages = Math.ceil((totalTopLevelComments + 1) / commentsPerPage);
+                  fetchComments(totalPages);
+              })
+              .catch(err => {
+                  console.error('forum.js: Post comment failed:', err);
+                  commentList.textContent = 'Failed to post comment';
+              });
+      };
+
+      fetchComments(1);
+  });
+})();
