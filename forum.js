@@ -364,7 +364,7 @@
 
                       const replyContainer = document.createElement('div');
                       replyContainer.className = `reply-container-${comment.id}`;
-                      replyContainer.style.cssText = `margin-left: ${indent}px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px; padding: 5px;`;
+                      replyContainer.style.cssText = `margin-left: ${indent}px; margin-top: 5px; padding: 5px;`;
                       const isRepliesVisible = replyVisibilityState.get(comment.id) || false;
                       replyContainer.style.display = isRepliesVisible ? 'block' : 'none';
 
@@ -461,8 +461,8 @@
                       border.appendChild(p);
                       border.appendChild(p1);
                       commentWrapper.appendChild(border);
-                      commentWrapper.appendChild(replyContainer);
                       container.appendChild(commentWrapper);
+                      container.appendChild(replyContainer);
 
                       if (comment.replies && Array.isArray(comment.replies)) {
                           comment.replies.forEach(reply => renderComment(reply, level + 1, replyContainer));
