@@ -283,7 +283,7 @@
           return res.json();
         })
         .then(data => {
-          console.log(data)
+          console.log(data);
           const allComments = Array.isArray(data) ? data : data.comments || [];
           totalTopLevelComments = data.total_top_level ? data.total_top_level : 
             allComments.reduce((count, comment) => count + (!comment.reply_of ? 1 : 0), 0);
@@ -312,11 +312,12 @@
 
           const renderComment = (comment, level = 0, container) => {
             const commentWrapper = document.createElement('div');
-            commentWrapper.style.cssText = `margin-bottom: 10px;`;
+            commentWrapper.style.cssText = `margin-bottom: 10px; position: relative;`;
           
+            // Fixed indentation: 0px for top-level, 20px for all replies
             const indent = level === 0 ? 0 : 20;
             const border = document.createElement('div');
-            border.style.cssText = `border: 1px solid #ccc; margin-left: ${indent}px; padding: 5px; background: #87CEEB; border-radius: 4px;`;
+            border.style.cssText = `border: 1px solid #ccc; margin-left: ${indent}px; padding: 5px; background: #87CEEB; border-radius: 4px; position: relative;`;
           
             const username = document.createElement('p');
             username.textContent = `${comment.username} :`;
@@ -380,7 +381,7 @@
           
             const replyContainer = document.createElement('div');
             replyContainer.className = `reply-container-${comment.id}`;
-            replyContainer.style.cssText = `margin-left: ${indent}px; margin-top: 5px; padding: 5px;`;
+            replyContainer.style.cssText = `margin-left: ${level === 0 ? 20 : 20}px; margin-top: 5px; padding: 5px;`;
             const isRepliesVisible = replyVisibilityState.get(comment.id) || false;
             replyContainer.style.display = isRepliesVisible ? 'block' : 'none';
           
@@ -411,18 +412,21 @@
                 return;
               }
           
-              // Toggle replies visibility
+              // Remove the currently active reply form, if any
+              if (activeReplyForm) {
+                activeReplyForm.remove();
+                activeReplyForm = null;
+              }
+          
               const isHidden = replyContainer.style.display === 'none';
               replyContainer.style.display = isHidden ? 'block' : 'none';
               replyVisibilityState.set(comment.id, isHidden);
           
-              // Check for existing reply form and remove it to ensure a fresh form
               let replyForm = replyContainer.querySelector('.reply-form');
               if (replyForm) {
-                replyForm.remove(); // Remove existing form to reset state
+                replyForm.remove();
               }
           
-              // Always create a new reply form
               replyForm = document.createElement('div');
               replyForm.className = 'reply-form';
               const replyInput = document.createElement('input');
@@ -448,6 +452,7 @@
                     })
                     .then(data => {
                       replyForm.remove();
+                      activeReplyForm = null; // Clear active reply form
                       replyBtn.textContent = 'Reply Again';
                       const newReply = {
                         id: data.post_id,
@@ -460,10 +465,16 @@
                         replies: []
                       };
                       if (!comment.replies) comment.replies = [];
-                      comment.replies.push(newReply);
+                      comment.replies.unshift(newReply); // Add to data, but we'll only render the new reply
                       toggleRepliesBtn.textContent = `${replyVisibilityState.get(comment.id) ? 'Hide' : 'Show'} Replies (${comment.replies.length})`;
-                      renderComment(newReply, level + 1, replyContainer);
-                      fetchComments(currentPage);
+                      
+                      // Clear replyContainer and render only the new reply
+                      replyContainer.innerHTML = '';
+                      const newReplyWrapper = document.createElement('div');
+                      renderComment(newReply, 1, newReplyWrapper); // Render at reply level
+                      replyContainer.appendChild(newReplyWrapper);
+                      
+                      fetchComments(currentPage); // Refresh the full comment list
                     })
                     .catch(err => console.error('Reply POST failed:', err));
                 }
@@ -471,7 +482,8 @@
           
               replyForm.appendChild(replyInput);
               replyForm.appendChild(replySubmit);
-              replyContainer.appendChild(replyForm);
+              p1.appendChild(replyForm);
+              activeReplyForm = replyForm; // Set the new active reply form
             });
           
             p1.appendChild(likeBtn);
@@ -488,8 +500,14 @@
             commentWrapper.appendChild(replyContainer);
             container.appendChild(commentWrapper);
           
+            // Render existing replies with fixed indent
             if (comment.replies && Array.isArray(comment.replies)) {
-              comment.replies.forEach(reply => renderComment(reply, level + 1, replyContainer));
+              replyContainer.innerHTML = ''; // Clear to avoid duplicates
+              comment.replies.forEach(reply => {
+                const replyWrapper = document.createElement('div');
+                renderComment(reply, 1, replyWrapper); // Fixed level for replies
+                replyContainer.appendChild(replyWrapper);
+              });
             }
           };
 
