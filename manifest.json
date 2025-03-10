@@ -4,7 +4,7 @@
     "manifest_version": 3,
     "description": "First prototype of the Evil Geniuses Foundation",
     "action" :{
-        "default_icon": "EFG.png",
+        "default_icon": "EFGplug.png",
         "default_title": "Evil Geniuses Foundation",
         "default_popup": "popup.html"
 },
