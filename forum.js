@@ -209,6 +209,8 @@
       commentList.textContent = 'Please log in to view comments';
       return;
     }
+    console.log("This is the response:", response)
+    const ID = response ? response.id : null
 
     const paginationDiv = document.createElement('div');
     paginationDiv.id = 'pagination-controls';
@@ -270,209 +272,256 @@
       paginationDiv.appendChild(pageInfo);
       paginationDiv.appendChild(nextBtn);
     };    
+// Utility function to decode HTML entities
+function decodeHTMLEntities(text) {
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = text;
+  return textarea.value;
+}
 
-    // renderComment function at top level
-    const renderComment = (comment, level = 0, container) => {
-      const commentWrapper = document.createElement('div');
-      commentWrapper.style.cssText = `margin-bottom: 10px; position: relative;`;
+const renderComment = (comment, level = 0, container) => {
+  const commentWrapper = document.createElement('div');
+  commentWrapper.style.cssText = `margin-bottom: 10px; position: relative;`;
 
-      // Fixed indentation: 0px for top-level, 20px for all replies
-      const indent = level === 0 ? 0 : 20;
-      const border = document.createElement('div');
-      border.style.cssText = `border: 1px solid #ccc; margin-left: ${indent}px; padding: 5px; background: #87CEEB; border-radius: 4px; position: relative;`;
+  // Fixed indentation: 0px for top-level, 20px for all replies
+  const indent = level === 0 ? 0 : 20;
+  const border = document.createElement('div');
+  
+  // Debug to ensure variables are defined
+  console.log("Indent:", indent, "Border:", border);
 
-      const username = document.createElement('p');
-      username.textContent = `${comment.username} :`;
-      username.style.cssText = `color: #000000 !important; font-size: 16px; font-weight: bold; margin: 0 0 5px 0;`;
+  // Split the assignment for clarity
+  const borderStyles = `border: 1px solid #ccc; margin-left: ${indent}px; padding: 5px; background: #87CEEB; border-radius: 4px; position: relative;`;
+  border.style.cssText = borderStyles;
 
-      const p = document.createElement('p');
-      p.textContent = `${comment.comment}`;
-      p.style.cssText = `margin: 0 0 5px 0; color: #000000 !important; background: transparent !important;`;
+  const username = document.createElement('p');
+  username.textContent = `${comment.username} :`;
+  username.style.cssText = `color: #000000 !important; font-size: 16px; font-weight: bold; margin: 0 0 5px 0;`;
 
-      const p1 = document.createElement('p');
-      p1.textContent = `Title: ${comment.title}`;
-      p1.style.cssText = `margin: 0 0 5px 0; color: #000000 !important; background: transparent !important;`;
+  const p = document.createElement('p');
+  // Decode HTML entities in the comment text
+  const decodedComment = decodeHTMLEntities(comment.comment);
+  console.log("Decoded comment text:", decodedComment);
+  p.textContent = decodedComment;
+  p.style.cssText = `margin: 0 0 5px 0; color: #000000 !important; background: transparent !important;`;
 
-      const likeBtn = document.createElement('button');
-      likeBtn.style.cssText = `margin-right: 5px; color: #000000 !important; background: transparent !important; border: none; padding: 5px; cursor: pointer; display: inline-flex; align-items: center;`;
-      const likeImg = likes.cloneNode(true);
-      likeImg.style.width = '40px';
-      likeBtn.appendChild(likeImg);
-      likeBtn.appendChild(document.createTextNode(` ${comment.likes}`));
-      likeBtn.addEventListener('click', () => {
-        if (!token) {
-          alert('Please log in to like posts');
-          return;
-        }
-        fetch(`https://evilgeniusfoundation-3b5e54342af3.herokuapp.com/api/likes`, {
+  const p1 = document.createElement('p');
+  p1.textContent = `Title: ${comment.title}`;
+  p1.style.cssText = `margin: 0 0 5px 0; color: #000000 !important; background: transparent !important;`;
+
+  const likeBtn = document.createElement('button');
+  likeBtn.style.cssText = `margin-right: 5px; color: #000000 !important; background: transparent !important; border: none; padding: 5px; cursor: pointer; display: inline-flex; align-items: center;`;
+  const likeImg = likes.cloneNode(true);
+  likeImg.style.width = '40px';
+  likeBtn.appendChild(likeImg);
+  likeBtn.appendChild(document.createTextNode(` ${comment.likes}`));
+  likeBtn.addEventListener('click', () => {
+    if (!token) {
+      alert('Please log in to like posts');
+      return;
+    }
+    fetch(`https://evilgeniusfoundation-3b5e54342af3.herokuapp.com/api/likes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ posts_id: comment.id })
+    })
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
+      .then(() => fetchComments(currentPage))
+      .catch(err => console.error('forum.js: Like failed:', err));
+  });
+
+  const dislikeBtn = document.createElement('button');
+  dislikeBtn.style.cssText = `margin-right: 5px; color: #000000 !important; background: transparent !important; border: none; padding: 5px; cursor: pointer; display: inline-flex; align-items: center;`;
+  const dislikeImg = dislikes.cloneNode(true);
+  dislikeImg.style.width = '40px';
+  dislikeBtn.appendChild(dislikeImg);
+  dislikeBtn.appendChild(document.createTextNode(` ${comment.dislikes}`));
+  dislikeBtn.addEventListener('click', () => {
+    if (!token) {
+      alert('Please log in to dislike posts');
+      return;
+    }
+    fetch(`https://evilgeniusfoundation-3b5e54342af3.herokuapp.com/api/dislikes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ posts_id: comment.id })
+    })
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
+      .then(() => fetchComments(currentPage))
+      .catch(err => console.error('forum.js: Dislike failed:', err));
+  });
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.textContent = `Delete`
+  deleteBtn.style.cssText =`
+  margin-left: 5px;
+  color: #FFFFFF !important;
+  background: #4B0082 !important;
+  border: 1px solid #ccc;
+  padding: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  `;
+
+  deleteBtn.addEventListener('click', () => {
+    if (!token) {
+      alert('Please login to delete posts!')
+      return;
+    }
+    fetch(`https://evilgeniusfoundation-3b5e54342af3.herokuapp.com/api/posts/${comment.id}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ post_id: comment.id})
+    })
+    .then(() => fetchComments(currentPage))
+    .catch(err => console.error('forum.js: Delete failed:', err));
+  })
+
+  const replyContainer = document.createElement('div');
+  replyContainer.className = `reply-container-${comment.id}`;
+  replyContainer.style.cssText = `margin-left: ${level === 0 ? 20 : 20}px; margin-top: 5px; padding: 5px;`;
+  const isRepliesVisible = replyVisibilityState.get(comment.id) || false;
+  replyContainer.style.display = isRepliesVisible ? 'block' : 'none';
+
+  const toggleRepliesBtn = document.createElement('button');
+  toggleRepliesBtn.textContent = `${isRepliesVisible ? 'Hide' : 'Show'} Replies (${comment.replies?.length || 0})`;
+  toggleRepliesBtn.style.cssText = `margin-left: 5px; color: #FFFFFF !important; background: #4B0082 !important; border: 1px solid #ccc; padding: 5px; cursor: pointer; font-size: 14px;`;
+  toggleRepliesBtn.addEventListener('click', () => {
+    const isHidden = replyContainer.style.display === 'none';
+    replyContainer.style.display = isHidden ? 'block' : 'none';
+    replyVisibilityState.set(comment.id, isHidden);
+    toggleRepliesBtn.textContent = `${isHidden ? 'Hide' : 'Show'} Replies (${comment.replies?.length || 0})`;
+  });
+
+  const replyBtn = document.createElement('button');
+  replyBtn.textContent = 'Reply';
+  replyBtn.style.cssText = `
+    margin-left: 5px;
+    color: #000000 !important;
+    background: transparent !important;
+    border: none;
+    padding: 5px;
+    cursor: pointer;
+    font-size: 14px;
+  `;
+  replyBtn.addEventListener('click', () => {
+    if (!token) {
+      alert('Please log in to reply');
+      return;
+    }
+
+    // Remove the currently active reply form, if any
+    if (activeReplyForm) {
+      activeReplyForm.remove();
+      activeReplyForm = null;
+    }
+
+    const isHidden = replyContainer.style.display === 'none';
+    replyContainer.style.display = isHidden ? 'block' : 'none';
+    replyVisibilityState.set(comment.id, isHidden);
+
+    let replyForm = replyContainer.querySelector('.reply-form');
+    if (replyForm) {
+      replyForm.remove();
+    }
+
+    replyForm = document.createElement('div');
+    replyForm.className = 'reply-form';
+    const replyInput = document.createElement('input');
+    replyInput.type = 'text';
+    replyInput.placeholder = 'Type your reply...';
+    replyInput.id = `reply-input-${comment.id}`;
+    replyInput.style.cssText = `width: 70%; color: #000000 !important; background: #ADD8E6 !important; border: 1px solid #ccc; padding: 5px; margin-top: 5px; box-sizing: border-box;`;
+    setPlaceholderColor(replyInput, '#888888');
+    const replySubmit = document.createElement('button');
+    replySubmit.textContent = 'Post Reply';
+    replySubmit.style.cssText = `margin-left: 5px; color: #FFFFFF !important; background: #4B0082 !important; border: 1px solid #ccc; padding: 5px 10px; cursor: pointer;`;
+    replySubmit.addEventListener('click', () => {
+      const replyText = replyInput.value.trim();
+      if (replyText) {
+        fetch(`https://evilgeniusfoundation-3b5e54342af3.herokuapp.com/api/posts`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ posts_id: comment.id })
+          body: JSON.stringify({ url: currentUrl, text: replyText, reply_of: comment.id })
         })
           .then(res => {
             if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
             return res.json();
           })
-          .then(() => fetchComments(currentPage))
-          .catch(err => console.error('forum.js: Like failed:', err));
-      });
-
-      const dislikeBtn = document.createElement('button');
-      dislikeBtn.style.cssText = `margin-right: 5px; color: #000000 !important; background: transparent !important; border: none; padding: 5px; cursor: pointer; display: inline-flex; align-items: center;`;
-      const dislikeImg = dislikes.cloneNode(true);
-      dislikeImg.style.width = '40px';
-      dislikeBtn.appendChild(dislikeImg);
-      dislikeBtn.appendChild(document.createTextNode(` ${comment.dislikes}`));
-      dislikeBtn.addEventListener('click', () => {
-        if (!token) {
-          alert('Please log in to dislike posts');
-          return;
-        }
-        fetch(`https://evilgeniusfoundation-3b5e54342af3.herokuapp.com/api/dislikes`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ posts_id: comment.id })
-        })
-          .then(res => {
-            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-            return res.json();
+          .then(data => {
+            replyForm.remove();
+            activeReplyForm = null; // Clear active reply form
+            replyBtn.textContent = 'Reply Again';
+            const newReply = {
+              id: data.post_id,
+              comment: replyText,
+              username: comment.username || 'Anonymous',
+              title: comment.title,
+              likes: 0,
+              dislikes: 0,
+              reply_of: comment.id,
+              replies: []
+            };
+            if (!comment.replies) comment.replies = [];
+            comment.replies.unshift(newReply); // Add to data, but we'll only render the new reply
+            toggleRepliesBtn.textContent = `${replyVisibilityState.get(comment.id) ? 'Hide' : 'Show'} Replies (${comment.replies.length})`;
+            
+            // Clear replyContainer and render only the new reply
+            replyContainer.innerHTML = '';
+            const newReplyWrapper = document.createElement('div');
+            renderComment(newReply, 1, newReplyWrapper); // Render at reply level
+            replyContainer.appendChild(newReplyWrapper);
+            
+            fetchComments(currentPage); // Refresh the full comment list
           })
-          .then(() => fetchComments(currentPage))
-          .catch(err => console.error('forum.js: Dislike failed:', err));
-      });
-
-      const replyContainer = document.createElement('div');
-      replyContainer.className = `reply-container-${comment.id}`;
-      replyContainer.style.cssText = `margin-left: ${level === 0 ? 20 : 20}px; margin-top: 5px; padding: 5px;`;
-      const isRepliesVisible = replyVisibilityState.get(comment.id) || false;
-      replyContainer.style.display = isRepliesVisible ? 'block' : 'none';
-
-      const toggleRepliesBtn = document.createElement('button');
-      toggleRepliesBtn.textContent = `${isRepliesVisible ? 'Hide' : 'Show'} Replies (${comment.replies?.length || 0})`;
-      toggleRepliesBtn.style.cssText = `margin-left: 5px; color: #FFFFFF !important; background: #4B0082 !important; border: 1px solid #ccc; padding: 5px; cursor: pointer; font-size: 14px;`;
-      toggleRepliesBtn.addEventListener('click', () => {
-        const isHidden = replyContainer.style.display === 'none';
-        replyContainer.style.display = isHidden ? 'block' : 'none';
-        replyVisibilityState.set(comment.id, isHidden);
-        toggleRepliesBtn.textContent = `${isHidden ? 'Hide' : 'Show'} Replies (${comment.replies?.length || 0})`;
-      });
-
-      const replyBtn = document.createElement('button');
-      replyBtn.textContent = 'Reply';
-      replyBtn.style.cssText = `
-        margin-left: 5px;
-        color: #000000 !important;
-        background: transparent !important;
-        border: none;
-        padding: 5px;
-        cursor: pointer;
-        font-size: 14px;
-      `;
-      replyBtn.addEventListener('click', () => {
-        if (!token) {
-          alert('Please log in to reply');
-          return;
-        }
-
-        // Remove the currently active reply form, if any
-        if (activeReplyForm) {
-          activeReplyForm.remove();
-          activeReplyForm = null;
-        }
-
-        const isHidden = replyContainer.style.display === 'none';
-        replyContainer.style.display = isHidden ? 'block' : 'none';
-        replyVisibilityState.set(comment.id, isHidden);
-
-        let replyForm = replyContainer.querySelector('.reply-form');
-        if (replyForm) {
-          replyForm.remove();
-        }
-
-        replyForm = document.createElement('div');
-        replyForm.className = 'reply-form';
-        const replyInput = document.createElement('input');
-        replyInput.type = 'text';
-        replyInput.placeholder = 'Type your reply...';
-        replyInput.id = `reply-input-${comment.id}`;
-        replyInput.style.cssText = `width: 70%; color: #000000 !important; background: #ADD8E6 !important; border: 1px solid #ccc; padding: 5px; margin-top: 5px; box-sizing: border-box;`;
-        setPlaceholderColor(replyInput, '#888888');
-        const replySubmit = document.createElement('button');
-        replySubmit.textContent = 'Post Reply';
-        replySubmit.style.cssText = `margin-left: 5px; color: #FFFFFF !important; background: #4B0082 !important; border: 1px solid #ccc; padding: 5px 10px; cursor: pointer;`;
-        replySubmit.addEventListener('click', () => {
-          const replyText = replyInput.value.trim();
-          if (replyText) {
-            fetch(`https://evilgeniusfoundation-3b5e54342af3.herokuapp.com/api/posts`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-              body: JSON.stringify({ url: currentUrl, text: replyText, reply_of: comment.id })
-            })
-              .then(res => {
-                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-                return res.json();
-              })
-              .then(data => {
-                replyForm.remove();
-                activeReplyForm = null; // Clear active reply form
-                replyBtn.textContent = 'Reply Again';
-                const newReply = {
-                  id: data.post_id,
-                  comment: replyText,
-                  username: comment.username || 'Anonymous',
-                  title: comment.title,
-                  likes: 0,
-                  dislikes: 0,
-                  reply_of: comment.id,
-                  replies: []
-                };
-                if (!comment.replies) comment.replies = [];
-                comment.replies.unshift(newReply); // Add to data, but we'll only render the new reply
-                toggleRepliesBtn.textContent = `${replyVisibilityState.get(comment.id) ? 'Hide' : 'Show'} Replies (${comment.replies.length})`;
-                
-                // Clear replyContainer and render only the new reply
-                replyContainer.innerHTML = '';
-                const newReplyWrapper = document.createElement('div');
-                renderComment(newReply, 1, newReplyWrapper); // Render at reply level
-                replyContainer.appendChild(newReplyWrapper);
-                
-                fetchComments(currentPage); // Refresh the full comment list
-              })
-              .catch(err => console.error('Reply POST failed:', err));
-          }
-        });
-
-        replyForm.appendChild(replyInput);
-        replyForm.appendChild(replySubmit);
-        p1.appendChild(replyForm);
-        activeReplyForm = replyForm; // Set the new active reply form
-      });
-
-      p1.appendChild(likeBtn);
-      p1.appendChild(dislikeBtn);
-      if (comment.replies && comment.replies.length > 0) {
-        p1.appendChild(toggleRepliesBtn);
+          .catch(err => console.error('Reply POST failed:', err));
       }
-      p1.appendChild(replyBtn);
+    });
 
-      border.appendChild(username);
-      border.appendChild(p);
-      border.appendChild(p1);
-      commentWrapper.appendChild(border);
-      commentWrapper.appendChild(replyContainer);
-      container.appendChild(commentWrapper);
+    replyForm.appendChild(replyInput);
+    replyForm.appendChild(replySubmit);
+    p1.appendChild(replyForm);
+    activeReplyForm = replyForm; // Set the new active reply form
+  });
 
-      // Render existing replies with fixed indent
-      if (comment.replies && Array.isArray(comment.replies)) {
-        replyContainer.innerHTML = ''; // Clear to avoid duplicates
-        comment.replies.forEach(reply => {
-          const replyWrapper = document.createElement('div');
-          renderComment(reply, 1, replyWrapper); // Fixed level for replies
-          replyContainer.appendChild(replyWrapper);
-        });
-      }
-    };
+  p1.appendChild(likeBtn);
+  p1.appendChild(dislikeBtn);
+  if (ID === comment.genius_id){
+    console.log("true")
+  }else{
+    console.log(ID, comment.genius_id)
+  }
+  if (ID === comment.genius_id){
+    p1.appendChild(deleteBtn);
+  }
+  if (comment.replies && comment.replies.length > 0) {
+    p1.appendChild(toggleRepliesBtn);
+  }
+  p1.appendChild(replyBtn);
 
+  border.appendChild(username);
+  border.appendChild(p);
+  border.appendChild(p1);
+  commentWrapper.appendChild(border);
+  commentWrapper.appendChild(replyContainer);
+  container.appendChild(commentWrapper);
+
+  // Render existing replies with fixed indent
+  if (comment.replies && Array.isArray(comment.replies)) {
+    replyContainer.innerHTML = ''; // Clear to avoid duplicates
+    comment.replies.forEach(reply => {
+      const replyWrapper = document.createElement('div');
+      renderComment(reply, 1, replyWrapper); // Fixed level for replies
+      replyContainer.appendChild(replyWrapper);
+    });
+  }
+};
     const fetchComments = (page = 1) => {
       currentPage = page;
       const offset = (page - 1) * commentsPerPage;
