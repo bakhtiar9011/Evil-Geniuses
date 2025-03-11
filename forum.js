@@ -209,9 +209,8 @@
       commentList.textContent = 'Please log in to view comments';
       return;
     }
-    console.log("This is the response:", response)
     const ID = response ? response.id : null
-
+    
     const paginationDiv = document.createElement('div');
     paginationDiv.id = 'pagination-controls';
     paginationDiv.style.cssText = `
