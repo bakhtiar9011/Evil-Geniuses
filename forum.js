@@ -53,7 +53,7 @@
       position: absolute;
       top: 5px;
       right: 5px;
-      color: #000000 !important;
+      color: #FFFFFF !important;
       background: #4B0082 !important;
       border: 1px solid #ccc;
       padding: 2px 8px;
