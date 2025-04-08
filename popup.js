@@ -91,19 +91,26 @@ registration_submit.addEventListener('click', function(e){
             email : email1.value
       })
     }
-    fetch(url, options)
-    .then(res => {
-    if(res.ok){
-        console.log("Success")
-        return res.json();
-    }else{
-        console.log("Not Successful")
-    }
-})
-    .then(data => {
-        chrome.storage.session.set('Token', data.token)
-        chrome.storage.session.set('ID', data.ID)
+    if(registration_username.value.length > 3 && registration_password.value.length > 6){
+        fetch(url, options)
+        .then(res => {
+        if(res.ok){
+            console.log("Success")
+            return res.json();
+        }else if(res.errorMessage = "Username or email already exists"){
+            alert("Username or e-mail is already in use. Please try again.")
+        }
+        else{
+            console.log("Not Successful")
+        }
     })
-    .catch(err =>
-        console.log(err));
-});
+        .then(data => {
+            chrome.storage.session.set('Token', data.token)
+            chrome.storage.session.set('ID', data.ID)
+        })
+        .catch(err =>
+            console.log(err));
+    }else{
+        alert("Password must be at least 6 characters and username must be at least 3 characters!")
+    }}
+)
